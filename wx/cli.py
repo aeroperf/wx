@@ -21,6 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
                "  wx 39.74,-105.0\n"
                "  wx Berlin --hourly\n"
                "  wx Reykjavik -d 7 --no-current\n"
+               "  wx Denver --afd             # include NWS forecast discussion\n"
                "  wx -m KORD                  # raw METAR\n"
                "  wx -t KORD                  # raw TAF\n"
                "  wx -mt KORD --decode        # decoded METAR + TAF\n"
@@ -46,6 +47,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="hide alerts (NWS only)")
     p.add_argument("-A", "--alerts-only", action="store_true",
                    help="show only active alerts")
+    p.add_argument("--afd", action="store_true",
+                   help="include NWS Area Forecast Discussion (US only; can be long)")
 
     # output
     p.add_argument("--style", choices=["rich", "table", "plain", "json"],
@@ -112,7 +115,8 @@ def _apply_overrides(cfg: dict, args: argparse.Namespace) -> dict:
 
 
 def _fetch_with_fallback(provider: str, lat: float, lon: float, label: str,
-                        ua: str, timeout: int, debug: bool) -> Forecast:
+                        ua: str, timeout: int, debug: bool,
+                        *, fetch_afd: bool = False) -> Forecast:
     """Try the chosen provider; on failure fall back to met.no."""
     attempts = []
     if provider == "auto":
@@ -129,7 +133,7 @@ def _fetch_with_fallback(provider: str, lat: float, lon: float, label: str,
         seen.add(p)
         try:
             if p == "nws":
-                return nws.fetch(lat, lon, label, ua, timeout)
+                return nws.fetch(lat, lon, label, ua, timeout, fetch_afd=fetch_afd)
             if p == "dwd":
                 return dwd.fetch(lat, lon, label, ua, timeout)
             return metno.fetch(lat, lon, label, ua, timeout)
@@ -252,7 +256,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         fc = _fetch_with_fallback(args.provider, loc.lat, loc.lon, loc.display,
-                                  ua, timeout, args.debug)
+                                  ua, timeout, args.debug, fetch_afd=args.afd)
     except Exception as e:
         if args.debug:
             raise
@@ -261,13 +265,14 @@ def main(argv: list[str] | None = None) -> int:
 
     # decide what to show
     if args.alerts_only:
-        show_current = show_hourly = show_daily = False
+        show_current = show_hourly = show_daily = show_afd = False
         show_alerts = True
     else:
         show_current = not args.no_current
         show_hourly = args.hourly
         show_daily = not args.no_daily and not args.current
         show_alerts = not args.no_alerts
+        show_afd = args.afd
 
     days = args.days if args.days is not None else cfg["forecast"]["days"]
     hours = args.hours if args.hours is not None else cfg["forecast"]["hourly_hours"]
@@ -281,6 +286,7 @@ def main(argv: list[str] | None = None) -> int:
         show_hourly=show_hourly,
         show_daily=show_daily,
         show_alerts=show_alerts,
+        show_afd=show_afd,
         days=days,
         hourly_hours=hours,
     )

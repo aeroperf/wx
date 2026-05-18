@@ -5,6 +5,16 @@ All notable changes to `wx` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] — 2026-05-18
+
+### Added
+- `--afd` flag surfaces the NWS Area Forecast Discussion alongside the
+  normal forecast for US locations. Off by default because AFDs can be
+  long; silent no-op for non-NWS providers. Fetched from
+  `/products/types/AFD/locations/{cwa}` using the office id returned by
+  `/points`. Included verbatim in rich/table/plain output and exposed as
+  the `afd` key in JSON output.
+
 ## [1.3.0] — 2026-05-18
 
 Compliance and pre-publish polish — no breaking changes, but several

@@ -88,4 +88,5 @@ class Forecast:
     hourly: list[HourlyPeriod] = field(default_factory=list)
     daily: list[DailyPeriod] = field(default_factory=list)
     alerts: list[Alert] = field(default_factory=list)
+    afd: Optional[str] = None       # NWS Area Forecast Discussion (raw product text)
     attribution: str = ""

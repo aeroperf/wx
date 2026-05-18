@@ -85,6 +85,7 @@ wx --hourly Denver      # add an hourly block
 wx -d 7 Reykjavik       # 7-day forecast
 wx -c Tokyo             # current only
 wx -A Miami             # active alerts only
+wx --afd Denver         # include NWS Area Forecast Discussion (US only)
 
 wx --style table Paris
 wx --style json Berlin  # machine-readable

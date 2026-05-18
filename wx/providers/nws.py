@@ -79,7 +79,20 @@ def _get(url: str, ua: str, timeout: int) -> dict[str, Any]:
     return r.json()
 
 
-def fetch(lat: float, lon: float, location_label: str, ua: str, timeout: int = 15) -> Forecast:
+def _fetch_afd(cwa: str, ua: str, timeout: int) -> str | None:
+    """Latest Area Forecast Discussion for the given Weather Forecast Office."""
+    listing = _get(f"{BASE}/products/types/AFD/locations/{cwa}", ua, timeout)
+    items = listing.get("@graph") or []
+    if not items:
+        return None
+    # listing is sorted newest-first; pick the first product
+    product = _get(items[0]["@id"], ua, timeout)
+    text = product.get("productText")
+    return text.strip() if isinstance(text, str) and text.strip() else None
+
+
+def fetch(lat: float, lon: float, location_label: str, ua: str, timeout: int = 15,
+          *, fetch_afd: bool = False) -> Forecast:
     lat, lon = round(lat, 4), round(lon, 4)
     fc = Forecast(
         provider="nws",
@@ -94,6 +107,7 @@ def fetch(lat: float, lon: float, location_label: str, ua: str, timeout: int = 1
     forecast_url = pprops.get("forecast")
     hourly_url = pprops.get("forecastHourly")
     stations_url = pprops.get("observationStations")
+    cwa = pprops.get("cwa") or pprops.get("gridId")
 
     # current conditions from nearest station
     if stations_url:
@@ -237,6 +251,13 @@ def fetch(lat: float, lon: float, location_label: str, ua: str, timeout: int = 1
             )
     except requests.RequestException:
         pass
+
+    # Area Forecast Discussion (opt-in; can be long)
+    if fetch_afd and cwa:
+        try:
+            fc.afd = _fetch_afd(cwa, ua, timeout)
+        except requests.RequestException:
+            pass
 
     return fc
 

@@ -146,7 +146,8 @@ def _fmt_day(d: datetime | None) -> str:
 
 # ─── rich (default) ───────────────────────────────────────────────────────
 def render_rich(fc: Forecast, cfg: dict, show_hourly: bool, show_daily: bool,
-                show_alerts: bool, days: int, hourly_hours: int) -> str:
+                show_alerts: bool, days: int, hourly_hours: int,
+                show_afd: bool = False) -> str:
     s = _style(cfg["display"]["color"])
     u = cfg["units"]
     show_icons = cfg["display"]["icons"]
@@ -217,6 +218,11 @@ def render_rich(fc: Forecast, cfg: dict, show_hourly: bool, show_daily: bool,
                 out.append(f"    {s.DIM}{_wrap(d.summary, 76)}{s.RST}")
         out.append("")
 
+    if show_afd and fc.afd:
+        out.append(f"{s.BOLD}Area Forecast Discussion{s.RST}")
+        out.append(f"{s.DIM}{fc.afd}{s.RST}")
+        out.append("")
+
     out.append(f"{s.DIM}{fc.attribution}{s.RST}")
     return "\n".join(out)
 
@@ -227,7 +233,8 @@ def _wrap(text: str, width: int) -> str:
 
 # ─── table ────────────────────────────────────────────────────────────────
 def render_table(fc: Forecast, cfg: dict, show_hourly: bool, show_daily: bool,
-                 show_alerts: bool, days: int, hourly_hours: int) -> str:
+                 show_alerts: bool, days: int, hourly_hours: int,
+                 show_afd: bool = False) -> str:
     u = cfg["units"]
     out = [f"{fc.location_label}  ({fc.lat:.4f}, {fc.lon:.4f})  via {fc.provider.upper()}", ""]
 
@@ -276,13 +283,19 @@ def render_table(fc: Forecast, cfg: dict, show_hourly: bool, show_daily: bool,
             out.append(f"  {day:<14}{hi:>8}{lo:>8}{pop:>10}  {d.condition}")
         out.append("")
 
+    if show_afd and fc.afd:
+        out.append("AREA FORECAST DISCUSSION")
+        out.append(fc.afd)
+        out.append("")
+
     out.append(fc.attribution)
     return "\n".join(out)
 
 
 # ─── plain ────────────────────────────────────────────────────────────────
 def render_plain(fc: Forecast, cfg: dict, show_hourly: bool, show_daily: bool,
-                 show_alerts: bool, days: int, hourly_hours: int) -> str:
+                 show_alerts: bool, days: int, hourly_hours: int,
+                 show_afd: bool = False) -> str:
     u = cfg["units"]
     lines = [f"{fc.location_label} ({fc.lat:.4f},{fc.lon:.4f}) [{fc.provider}]"]
     if fc.current:
@@ -311,12 +324,17 @@ def render_plain(fc: Forecast, cfg: dict, show_hourly: bool, show_daily: bool,
                 f"{_fmt_day(d.date)}: hi {_convert_temp(d.temp_max, u['temperature'])} "
                 f"lo {_convert_temp(d.temp_min, u['temperature'])} {d.condition}"
             )
+    if show_afd and fc.afd:
+        lines.append("")
+        lines.append("--- Area Forecast Discussion ---")
+        lines.append(fc.afd)
     return "\n".join(lines)
 
 
 # ─── json ─────────────────────────────────────────────────────────────────
 def render_json(fc: Forecast, cfg: dict, show_hourly: bool, show_daily: bool,
-                show_alerts: bool, days: int, hourly_hours: int) -> str:
+                show_alerts: bool, days: int, hourly_hours: int,
+                show_afd: bool = False) -> str:
     u = cfg["units"]
 
     def _cur(c) -> dict[str, Any] | None:
@@ -375,17 +393,20 @@ def render_json(fc: Forecast, cfg: dict, show_hourly: bool, show_daily: bool,
              "description": a.description, "instruction": a.instruction}
             for a in fc.alerts
         ] if show_alerts else [],
+        "afd": fc.afd if show_afd else None,
         "attribution": fc.attribution,
     }
     return jsonlib.dumps(payload, indent=2, default=str)
 
 
 def render(fc: Forecast, cfg: dict, *, style: str, show_hourly: bool, show_daily: bool,
-           show_alerts: bool, days: int, hourly_hours: int) -> str:
+           show_alerts: bool, days: int, hourly_hours: int,
+           show_afd: bool = False) -> str:
     fn = {
         "rich": render_rich,
         "table": render_table,
         "plain": render_plain,
         "json": render_json,
     }.get(style, render_rich)
-    return fn(fc, cfg, show_hourly, show_daily, show_alerts, days, hourly_hours)
+    return fn(fc, cfg, show_hourly, show_daily, show_alerts, days, hourly_hours,
+              show_afd=show_afd)
