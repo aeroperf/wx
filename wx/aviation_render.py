@@ -4,49 +4,61 @@ from __future__ import annotations
 import json as jsonlib
 from dataclasses import asdict
 from datetime import datetime
+from typing import Any
 
+from . import units as U
 from .providers.aviationweather import MetarReport, TafForecastPeriod, TafReport
+
+DASH = "—"
 
 
 def _fmt_dt(t: datetime | None) -> str:
-    return t.strftime("%Y-%m-%d %H:%MZ") if t else "—"
+    return t.strftime("%Y-%m-%d %H:%MZ") if t else DASH
 
 
-def _wind_str(d, spd, gust) -> str:
+def _wind_str(d: Any, spd: float | None, gust: float | None) -> str:
     if spd is None and d is None:
-        return "—"
-    direction = "VRB" if d == "VRB" or d is None else f"{int(d):03d}°"
-    base = f"{direction} @ {spd or 0:.0f} kt"
-    if gust:
+        return DASH
+    if d == "VRB" or d is None:
+        direction = "VRB"
+    else:
+        direction = f"{int(d):03d}°"
+    speed = f"{spd:.0f}" if spd is not None else "—"
+    base = f"{direction} @ {speed} kt"
+    if gust is not None:
         base += f" gust {gust:.0f} kt"
     return base
 
 
-def _clouds_str(clouds: list[dict]) -> str:
+def _clouds_str(clouds: list[dict[str, Any]]) -> str:
     if not clouds:
-        return "—"
-    parts = []
+        return DASH
+    parts: list[str] = []
     for c in clouds:
         cover = c.get("cover", "?")
         base = c.get("base")
         typ = c.get("type") or ""
-        suffix = typ if typ else ""
         if base is None:
-            parts.append(f"{cover}{suffix}")
+            parts.append(f"{cover}{typ}")
         else:
-            parts.append(f"{cover}{suffix} @ {int(base):,} ft")
+            parts.append(f"{cover}{typ} @ {int(base):,} ft")
     return ", ".join(parts)
 
 
-def _vis_str(v) -> str:
+def _vis_str(v: Any) -> str:
     if v is None or v == "":
-        return "—"
+        return DASH
     if isinstance(v, (int, float)):
         return f"{v} SM"
-    s = str(v)
-    if s.endswith("+"):
-        return f"{s[:-1]}+ SM"
-    return f"{s} SM"
+    return f"{v} SM"
+
+
+def _wind_shear_str(p: TafForecastPeriod) -> str | None:
+    if p.wind_shear_hgt_ft is None:
+        return None
+    direction = f"{p.wind_shear_dir:03d}°" if p.wind_shear_dir is not None else "VRB"
+    speed = f"{p.wind_shear_spd_kt:.0f}" if p.wind_shear_spd_kt is not None else "—"
+    return f"wind shear {direction} @ {speed} kt at {p.wind_shear_hgt_ft:,} ft"
 
 
 # ─── METAR ────────────────────────────────────────────────────────────────
@@ -67,11 +79,11 @@ def render_metar_decoded(m: MetarReport) -> str:
         out.append(f"  weather    {m.wx_string}")
     out.append(f"  clouds     {_clouds_str(m.clouds)}")
     if m.temp_c is not None or m.dewp_c is not None:
-        t = f"{m.temp_c:.0f}°C" if m.temp_c is not None else "—"
-        d = f"{m.dewp_c:.0f}°C" if m.dewp_c is not None else "—"
+        t = f"{m.temp_c:.0f}°C" if m.temp_c is not None else DASH
+        d = f"{m.dewp_c:.0f}°C" if m.dewp_c is not None else DASH
         out.append(f"  temp/dewp  {t} / {d}")
     if m.altimeter_hpa is not None:
-        inhg = m.altimeter_hpa * 0.02953
+        inhg = U.hpa_to(m.altimeter_hpa, "inHg") or 0.0
         out.append(f"  altimeter  {inhg:.2f} inHg  ({m.altimeter_hpa:.0f} hPa)")
     if m.slp_hpa is not None:
         out.append(f"  SLP        {m.slp_hpa:.1f} hPa")
@@ -86,13 +98,17 @@ def render_taf_raw(t: TafReport) -> str:
 
 
 def _period_label(p: TafForecastPeriod, is_first: bool) -> str:
-    if p.change == "FM":
+    change = (p.change or "").upper()
+    # Many feeds emit combined codes like "PROB30 TEMPO" or "PROB30"; normalize.
+    if change.startswith("PROB"):
+        prob = p.probability if p.probability is not None else "?"
+        suffix = " TEMPO" if "TEMPO" in change else ""
+        return f"PROB{prob}{suffix} {_fmt_dt(p.time_from)} → {_fmt_dt(p.time_to)}"
+    if change == "FM":
         return f"FM {_fmt_dt(p.time_from)}"
-    if p.change == "BECMG":
+    if change == "BECMG":
         return f"BECMG {_fmt_dt(p.time_from)} → {_fmt_dt(p.time_to)}"
-    if p.change == "PROB":
-        return f"PROB{p.probability or 0} {_fmt_dt(p.time_from)} → {_fmt_dt(p.time_to)}"
-    if p.change == "TEMPO":
+    if change == "TEMPO":
         return f"TEMPO {_fmt_dt(p.time_from)} → {_fmt_dt(p.time_to)}"
     return f"{'INITIAL' if is_first else 'PERIOD'} {_fmt_dt(p.time_from)} → {_fmt_dt(p.time_to)}"
 
@@ -113,27 +129,27 @@ def render_taf_decoded(t: TafReport) -> str:
         if p.wx_string:
             out.append(f"    weather    {p.wx_string}")
         out.append(f"    clouds     {_clouds_str(p.clouds)}")
-        if p.wind_shear_hgt_ft is not None:
-            out.append(
-                f"    wind shear {p.wind_shear_dir or 0:03d}° @ "
-                f"{p.wind_shear_spd_kt or 0:.0f} kt at {p.wind_shear_hgt_ft:,} ft"
-            )
+        shear = _wind_shear_str(p)
+        if shear:
+            out.append(f"    {shear}")
         out.append("")
     out.append(f"  raw  {t.raw}")
     return "\n".join(out)
 
 
 # ─── JSON wrapper (only when --style=json) ────────────────────────────────
-def _metar_to_dict(m: MetarReport) -> dict:
+def _metar_to_dict(m: MetarReport) -> dict[str, Any]:
     d = asdict(m)
+    d.pop("raw", None)  # raw lives at the outer level; avoid duplication
     for k in ("observed", "report_time"):
         if d.get(k):
             d[k] = d[k].isoformat()
     return d
 
 
-def _taf_to_dict(t: TafReport) -> dict:
+def _taf_to_dict(t: TafReport) -> dict[str, Any]:
     d = asdict(t)
+    d.pop("raw", None)
     for k in ("issued", "valid_from", "valid_to"):
         if d.get(k):
             d[k] = d[k].isoformat()
@@ -145,7 +161,7 @@ def _taf_to_dict(t: TafReport) -> dict:
 
 
 def render_aviation_json(icao: str, m: MetarReport | None, t: TafReport | None) -> str:
-    payload: dict = {"icao": icao}
+    payload: dict[str, Any] = {"icao": icao}
     if m is not None:
         payload["metar"] = {"raw": m.raw, "decoded": _metar_to_dict(m)}
     if t is not None:

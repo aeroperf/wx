@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import Optional
 
 import requests
 
@@ -123,7 +122,7 @@ def _fetch_with_fallback(provider: str, lat: float, lon: float, label: str,
         if provider != "metno":
             attempts.append("metno")
     seen = set()
-    last_err: Optional[Exception] = None
+    last_err: Exception | None = None
     for p in attempts:
         if p in seen:
             continue
@@ -149,16 +148,20 @@ def _fetch_with_fallback(provider: str, lat: float, lon: float, label: str,
 
 
 def _is_icao(s: str) -> bool:
-    return len(s) == 4 and s.isalpha()
+    """ICAO/FAA station identifiers are 4 alphanumeric characters."""
+    return len(s) == 4 and s.isalnum()
 
 
 def _run_aviation(args: argparse.Namespace, ua: str, timeout: int, cfg: dict) -> int:
     if not args.location:
         print("wx: -m/-t requires an ICAO code (e.g. `wx -m KORD`).", file=sys.stderr)
         return 2
+    if len(args.location) > 1:
+        extras = " ".join(args.location[1:])
+        print(f"wx: ignoring extra arguments after ICAO: {extras!r}", file=sys.stderr)
     icao = args.location[0].upper()
     if not _is_icao(icao):
-        print(f"wx: '{icao}' is not a valid 4-letter ICAO code.", file=sys.stderr)
+        print(f"wx: '{icao}' is not a valid 4-character station ID.", file=sys.stderr)
         return 2
 
     metar = taf = None
@@ -176,8 +179,7 @@ def _run_aviation(args: argparse.Namespace, ua: str, timeout: int, cfg: dict) ->
         print(f"wx: aviationweather.gov request failed: {e}", file=sys.stderr)
         return 1
 
-    style = cfg["display"]["style"]
-    if style == "json":
+    if cfg["display"]["style"] == "json":
         print(aviation_render.render_aviation_json(icao, metar, taf))
         return 0
 
@@ -222,10 +224,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"config: {settings.config_path()}", file=sys.stderr)
         return 2
 
-    # resolve location alias from [locations] table (e.g. wx home)
-    aliases = cfg.get("locations") or {}
-    if query in aliases and aliases[query]:
-        query = aliases[query]
+    # resolve location alias from [locations] table (e.g. wx home; case-insensitive)
+    aliases = {k.lower(): v for k, v in (cfg.get("locations") or {}).items()}
+    alias = aliases.get(query.lower())
+    if alias:
+        query = alias
 
     try:
         loc = geocode.resolve(query, ua, timeout)
@@ -252,8 +255,8 @@ def main(argv: list[str] | None = None) -> int:
         show_daily = not args.no_daily and not args.current
         show_alerts = not args.no_alerts
 
-    days = args.days or cfg["forecast"]["days"]
-    hours = args.hours or cfg["forecast"]["hourly_hours"]
+    days = args.days if args.days is not None else cfg["forecast"]["days"]
+    hours = args.hours if args.hours is not None else cfg["forecast"]["hourly_hours"]
 
     if not show_current and fc.current:
         fc.current = None  # suppress in render

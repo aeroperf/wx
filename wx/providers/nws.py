@@ -29,10 +29,6 @@ from ..model import (
 BASE = "https://api.weather.gov"
 
 
-def _round(v: float) -> float:
-    return round(v, 4)
-
-
 def _parse_dt(s: str | None) -> datetime | None:
     if not s:
         return None
@@ -84,7 +80,7 @@ def _get(url: str, ua: str, timeout: int) -> dict[str, Any]:
 
 
 def fetch(lat: float, lon: float, location_label: str, ua: str, timeout: int = 15) -> Forecast:
-    lat, lon = _round(lat), _round(lon)
+    lat, lon = round(lat, 4), round(lon, 4)
     fc = Forecast(
         provider="nws",
         location_label=location_label,

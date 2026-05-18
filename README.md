@@ -102,9 +102,10 @@ wx -h                   # full help
 
 ### METAR & TAF for airports
 
-Aviation observations and forecasts by 4-letter ICAO code, sourced from
-[aviationweather.gov](https://aviationweather.gov/data/api/). Works worldwide
-(KORD, EGLL, RJTT, SBGR, …).
+Aviation observations and forecasts by 4-character station identifier,
+sourced from [aviationweather.gov](https://aviationweather.gov/data/api/).
+Works worldwide with ICAO codes (KORD, EGLL, RJTT, SBGR, …) as well as
+FAA identifiers that include digits (e.g. K1G3, 0R0).
 
 ```bash
 wx -m KORD              # raw METAR
@@ -151,7 +152,7 @@ hourly_hours = 12
 [api]
 # NWS and met.no both require a descriptive User-Agent with contact info.
 # Edit this to your own site/email.
-user_agent = "wx/1.1 (https://example.com; you@example.com)"
+user_agent = "wx/1.2 (https://example.com; you@example.com)"
 timeout    = 15
 
 [location]
@@ -197,13 +198,20 @@ falls back to met.no.
 
 Override with `--provider {nws,dwd,metno,auto}`.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
+
 ## Development
 
 ```bash
 # install deps including dev group (pytest)
 uv sync
 
-# run the test suite
+# run the unit tests (pytest)
+uv run pytest
+
+# run the end-to-end integration script
 uv run python test_integration.py
 
 # run the CLI from source without installing

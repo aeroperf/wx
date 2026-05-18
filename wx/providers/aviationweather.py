@@ -6,16 +6,27 @@ Endpoints (https://aviationweather.gov/data/api/):
 
 The METAR endpoint returns 204 with no body if `hours` is not supplied and
 no report exists within the default look-back. Always pass `hours`.
+
+Field reference (subset, see schema link above):
+  METAR: icaoId, rawOb, obsTime (epoch s), reportTime (ISO),
+         temp/dewp (°C), wdir (deg | "VRB"), wspd/wgst (kt), visib (str|num),
+         altim (hPa), slp (hPa), fltCat, clouds[], cover, wxString
+  TAF:   icaoId, rawTAF, issueTime (ISO), validTimeFrom/To (epoch s), mostRecent,
+         fcsts[]: timeFrom/To (epoch s), fcstChange (FM|BECMG|PROB|TEMPO|null),
+                  probability (int), wdir, wspd, wgst, visib, wxString, clouds[]
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 import requests
 
 BASE = "https://aviationweather.gov/api/data"
+
+WindDir = int | Literal["VRB"] | None
+Visibility = str | float | None
 
 
 class AviationWeatherError(RuntimeError):
@@ -34,10 +45,10 @@ class MetarReport:
     elev_m: float | None = None
     temp_c: float | None = None
     dewp_c: float | None = None
-    wind_dir: Any = None        # int deg or "VRB"
+    wind_dir: WindDir = None
     wind_speed_kt: float | None = None
     wind_gust_kt: float | None = None
-    visibility: str = ""        # raw string (e.g. "10+", "6")
+    visibility: Visibility = None
     altimeter_hpa: float | None = None
     slp_hpa: float | None = None
     flight_cat: str = ""
@@ -52,10 +63,10 @@ class TafForecastPeriod:
     time_to: datetime | None
     change: str = ""            # FM, BECMG, PROB, TEMPO, ""
     probability: int | None = None
-    wind_dir: Any = None
+    wind_dir: WindDir = None
     wind_speed_kt: float | None = None
     wind_gust_kt: float | None = None
-    visibility: Any = None      # str or number
+    visibility: Visibility = None
     wx_string: str = ""
     clouds: list[dict[str, Any]] = field(default_factory=list)
     wind_shear_hgt_ft: int | None = None
@@ -78,7 +89,7 @@ class TafReport:
     forecasts: list[TafForecastPeriod] = field(default_factory=list)
 
 
-def _epoch(v) -> datetime | None:
+def _epoch(v: Any) -> datetime | None:
     if v is None:
         return None
     try:
@@ -87,7 +98,7 @@ def _epoch(v) -> datetime | None:
         return None
 
 
-def _iso(v) -> datetime | None:
+def _iso(v: Any) -> datetime | None:
     if not v:
         return None
     try:
@@ -96,9 +107,10 @@ def _iso(v) -> datetime | None:
         return None
 
 
-def _get_json(url: str, ua: str, timeout: int) -> list[dict[str, Any]]:
+def _get_json(path: str, params: dict[str, Any], ua: str, timeout: int) -> list[dict[str, Any]]:
     r = requests.get(
-        url,
+        f"{BASE}/{path}",
+        params=params,
         headers={"User-Agent": ua, "Accept": "application/json"},
         timeout=timeout,
     )
@@ -114,15 +126,17 @@ def _get_json(url: str, ua: str, timeout: int) -> list[dict[str, Any]]:
     return data
 
 
-def fetch_metar(icao: str, ua: str, timeout: int = 15, hours: int = 6) -> MetarReport:
-    icao = icao.upper().strip()
-    url = f"{BASE}/metar?ids={icao}&hours={hours}&format=json"
-    data = _get_json(url, ua, timeout)
-    if not data:
-        raise AviationWeatherError(f"no METAR available for {icao} (last {hours}h)")
-    d = data[0]  # most recent
+def _pick_most_recent(records: list[dict[str, Any]], time_key: str) -> dict[str, Any]:
+    """Prefer records flagged mostRecent=1, otherwise newest by `time_key` (epoch s)."""
+    recents = [r for r in records if r.get("mostRecent") == 1]
+    if recents:
+        return recents[0]
+    return max(records, key=lambda r: r.get(time_key) or 0)
+
+
+def _metar_from_dict(d: dict[str, Any], fallback_icao: str) -> MetarReport:
     return MetarReport(
-        icao=d.get("icaoId", icao),
+        icao=d.get("icaoId", fallback_icao),
         raw=d.get("rawOb", ""),
         observed=_epoch(d.get("obsTime")),
         report_time=_iso(d.get("reportTime")),
@@ -135,44 +149,37 @@ def fetch_metar(icao: str, ua: str, timeout: int = 15, hours: int = 6) -> MetarR
         wind_dir=d.get("wdir"),
         wind_speed_kt=d.get("wspd"),
         wind_gust_kt=d.get("wgst"),
-        visibility=str(d.get("visib", "")),
+        visibility=d.get("visib"),
         altimeter_hpa=d.get("altim"),
         slp_hpa=d.get("slp"),
         flight_cat=d.get("fltCat", ""),
         clouds=d.get("clouds") or [],
         cover=d.get("cover", ""),
-        wx_string=d.get("wxString", "") or "",
+        wx_string=d.get("wxString") or "",
     )
 
 
-def fetch_taf(icao: str, ua: str, timeout: int = 15) -> TafReport:
-    icao = icao.upper().strip()
-    url = f"{BASE}/taf?ids={icao}&format=json"
-    data = _get_json(url, ua, timeout)
-    if not data:
-        raise AviationWeatherError(f"no TAF available for {icao}")
-    d = data[0]
-    forecasts: list[TafForecastPeriod] = []
-    for f in d.get("fcsts") or []:
-        forecasts.append(
-            TafForecastPeriod(
-                time_from=_epoch(f.get("timeFrom")),
-                time_to=_epoch(f.get("timeTo")),
-                change=f.get("fcstChange") or "",
-                probability=f.get("probability"),
-                wind_dir=f.get("wdir"),
-                wind_speed_kt=f.get("wspd"),
-                wind_gust_kt=f.get("wgst"),
-                visibility=f.get("visib"),
-                wx_string=f.get("wxString") or "",
-                clouds=f.get("clouds") or [],
-                wind_shear_hgt_ft=f.get("wshearHgt"),
-                wind_shear_dir=f.get("wshearDir"),
-                wind_shear_spd_kt=f.get("wshearSpd"),
-            )
+def _taf_from_dict(d: dict[str, Any], fallback_icao: str) -> TafReport:
+    forecasts = [
+        TafForecastPeriod(
+            time_from=_epoch(f.get("timeFrom")),
+            time_to=_epoch(f.get("timeTo")),
+            change=f.get("fcstChange") or "",
+            probability=f.get("probability"),
+            wind_dir=f.get("wdir"),
+            wind_speed_kt=f.get("wspd"),
+            wind_gust_kt=f.get("wgst"),
+            visibility=f.get("visib"),
+            wx_string=f.get("wxString") or "",
+            clouds=f.get("clouds") or [],
+            wind_shear_hgt_ft=f.get("wshearHgt"),
+            wind_shear_dir=f.get("wshearDir"),
+            wind_shear_spd_kt=f.get("wshearSpd"),
         )
+        for f in (d.get("fcsts") or [])
+    ]
     return TafReport(
-        icao=d.get("icaoId", icao),
+        icao=d.get("icaoId", fallback_icao),
         raw=d.get("rawTAF", ""),
         issued=_iso(d.get("issueTime")),
         valid_from=_epoch(d.get("validTimeFrom")),
@@ -181,6 +188,33 @@ def fetch_taf(icao: str, ua: str, timeout: int = 15) -> TafReport:
         lat=d.get("lat"),
         lon=d.get("lon"),
         elev_m=d.get("elev"),
-        remarks=d.get("remarks", "") or "",
+        remarks=d.get("remarks") or "",
         forecasts=forecasts,
     )
+
+
+def fetch_metar(icao: str, ua: str, timeout: int = 15, hours: int = 6) -> MetarReport:
+    icao = icao.upper().strip()
+    data = _get_json(
+        "metar",
+        {"ids": icao, "hours": hours, "format": "json"},
+        ua,
+        timeout,
+    )
+    if not data:
+        raise AviationWeatherError(f"no METAR available for {icao} (last {hours}h)")
+    return _metar_from_dict(_pick_most_recent(data, "obsTime"), icao)
+
+
+def fetch_taf(icao: str, ua: str, timeout: int = 15) -> TafReport:
+    icao = icao.upper().strip()
+    data = _get_json(
+        "taf",
+        {"ids": icao, "format": "json"},
+        ua,
+        timeout,
+    )
+    if not data:
+        raise AviationWeatherError(f"no TAF available for {icao}")
+    # API may return current + amended; prefer mostRecent=1, else latest issue.
+    return _taf_from_dict(_pick_most_recent(data, "validTimeFrom"), icao)
