@@ -7,9 +7,9 @@ from typing import Optional
 
 import requests
 
-from . import __version__, geocode, render, router, settings
+from . import __version__, aviation_render, geocode, render, router, settings
 from .model import Forecast
-from .providers import dwd, metno, nws
+from .providers import aviationweather, dwd, metno, nws
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -22,6 +22,9 @@ def build_parser() -> argparse.ArgumentParser:
                "  wx 39.74,-105.0\n"
                "  wx Berlin --hourly\n"
                "  wx Reykjavik -d 7 --no-current\n"
+               "  wx -m KORD                  # raw METAR\n"
+               "  wx -t KORD                  # raw TAF\n"
+               "  wx -mt KORD --decode        # decoded METAR + TAF\n"
                "  wx --config-path",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -63,6 +66,16 @@ def build_parser() -> argparse.ArgumentParser:
     # provider override
     p.add_argument("--provider", choices=["auto", "nws", "dwd", "metno"],
                    default="auto", help="force a specific provider")
+
+    # aviation (METAR/TAF for airports by ICAO code)
+    p.add_argument("-m", "--metar", action="store_true",
+                   help="fetch METAR for ICAO code (e.g. `wx -m KORD`)")
+    p.add_argument("-t", "--taf", action="store_true",
+                   help="fetch TAF for ICAO code (e.g. `wx -t KORD`)")
+    p.add_argument("--decode", action="store_true",
+                   help="decode METAR/TAF instead of printing raw text")
+    p.add_argument("--metar-hours", type=int, default=6,
+                   help="METAR look-back window in hours (default 6)")
 
     # diagnostics
     p.add_argument("--config-path", action="store_true",
@@ -135,6 +148,54 @@ def _fetch_with_fallback(provider: str, lat: float, lon: float, label: str,
     raise RuntimeError(f"all providers failed ({last_err})")
 
 
+def _is_icao(s: str) -> bool:
+    return len(s) == 4 and s.isalpha()
+
+
+def _run_aviation(args: argparse.Namespace, ua: str, timeout: int, cfg: dict) -> int:
+    if not args.location:
+        print("wx: -m/-t requires an ICAO code (e.g. `wx -m KORD`).", file=sys.stderr)
+        return 2
+    icao = args.location[0].upper()
+    if not _is_icao(icao):
+        print(f"wx: '{icao}' is not a valid 4-letter ICAO code.", file=sys.stderr)
+        return 2
+
+    metar = taf = None
+    try:
+        if args.metar:
+            metar = aviationweather.fetch_metar(icao, ua, timeout, hours=args.metar_hours)
+        if args.taf:
+            taf = aviationweather.fetch_taf(icao, ua, timeout)
+    except aviationweather.AviationWeatherError as e:
+        print(f"wx: {e}", file=sys.stderr)
+        return 1
+    except requests.RequestException as e:
+        if args.debug:
+            raise
+        print(f"wx: aviationweather.gov request failed: {e}", file=sys.stderr)
+        return 1
+
+    style = cfg["display"]["style"]
+    if style == "json":
+        print(aviation_render.render_aviation_json(icao, metar, taf))
+        return 0
+
+    parts: list[str] = []
+    if metar is not None:
+        parts.append(
+            aviation_render.render_metar_decoded(metar) if args.decode
+            else aviation_render.render_metar_raw(metar)
+        )
+    if taf is not None:
+        parts.append(
+            aviation_render.render_taf_decoded(taf) if args.decode
+            else aviation_render.render_taf_raw(taf)
+        )
+    print("\n\n".join(parts))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     cfg = settings.load()
@@ -146,6 +207,10 @@ def main(argv: list[str] | None = None) -> int:
     cfg = _apply_overrides(cfg, args)
     ua = cfg["api"]["user_agent"]
     timeout = cfg["api"]["timeout"]
+
+    # METAR/TAF short-circuit: positional must be an ICAO code (4 alpha chars)
+    if args.metar or args.taf:
+        return _run_aviation(args, ua, timeout, cfg)
 
     if args.location:
         query = " ".join(args.location)

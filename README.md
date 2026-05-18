@@ -8,6 +8,7 @@ defaulting to one global model:
 | CONUS, AK, HI, PR, USVI, Guam, Samoa | **NWS** (`api.weather.gov`) | Direct from US forecasters; includes detailed text forecasts and active alerts. |
 | Europe & nearby | **DWD** via Bright Sky (`api.brightsky.dev`) | DWD's MOSMIX is excellent for Europe; Bright Sky surfaces it cleanly. |
 | Everywhere else | **met.no** (`api.met.no/locationforecast`) | Norway's MET, also used as fallback if a regional API fails. |
+| Airports (worldwide) | **aviationweather.gov** | Official US NWS Aviation Weather Center. METAR + TAF by ICAO code. |
 
 No API keys required. Pure Python; runs on macOS, Windows, Linux.
 
@@ -99,6 +100,28 @@ wx -V                   # version
 wx -h                   # full help
 ```
 
+### METAR & TAF for airports
+
+Aviation observations and forecasts by 4-letter ICAO code, sourced from
+[aviationweather.gov](https://aviationweather.gov/data/api/). Works worldwide
+(KORD, EGLL, RJTT, SBGR, …).
+
+```bash
+wx -m KORD              # raw METAR
+wx -t KORD              # raw TAF
+wx -mt KORD             # raw METAR + TAF
+wx -mt KORD --decode    # decoded / pretty-printed
+wx -m KORD --metar-hours 12   # widen METAR look-back window
+wx -mt KORD --style json      # structured JSON (raw + decoded fields)
+```
+
+Default output is the raw, standard-format METAR/TAF string — the form
+pilots and dispatchers expect. `--decode` formats winds, clouds, change
+groups (FM/BECMG/PROB/TEMPO), and validity windows as a readable block.
+
+The aviation mode short-circuits forecast routing — flags like `-H`, `-d`,
+`-A`, `--provider`, etc. are ignored when `-m` or `-t` is set.
+
 ### Settings file
 
 On first run, a TOML config is created:
@@ -128,7 +151,7 @@ hourly_hours = 12
 [api]
 # NWS and met.no both require a descriptive User-Agent with contact info.
 # Edit this to your own site/email.
-user_agent = "wx/1.0 (https://example.com; you@example.com)"
+user_agent = "wx/1.1 (https://example.com; you@example.com)"
 timeout    = 15
 
 [location]
@@ -197,5 +220,6 @@ This tool re-displays public data from:
 - US NOAA / National Weather Service — public domain.
 - Deutscher Wetterdienst, served via Bright Sky — DWD terms of use apply.
 - MET Norway — Norwegian Licence for Open Government Data (NLOD) / CC BY 4.0.
+- NWS Aviation Weather Center (`aviationweather.gov`) — public domain.
 
 The attribution line is printed at the bottom of each forecast.
