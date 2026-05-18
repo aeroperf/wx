@@ -53,6 +53,12 @@ def is_europe(lat: float, lon: float) -> bool:
     # Canary Islands (Spanish territory, off Morocco coast)
     if _in_box(lat, lon, lat_min=27.5, lat_max=29.5, lon_min=-18.2, lon_max=-13.4):
         return True
+    # Madeira (Portuguese territory, incl. Porto Santo)
+    if _in_box(lat, lon, lat_min=32.3, lat_max=33.2, lon_min=-17.3, lon_max=-16.2):
+        return True
+    # Azores (Portuguese territory)
+    if _in_box(lat, lon, lat_min=36.8, lat_max=39.8, lon_min=-31.3, lon_max=-24.9):
+        return True
     return False
 
 
