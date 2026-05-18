@@ -194,6 +194,11 @@ def _run_aviation(args: argparse.Namespace, ua: str, timeout: int, cfg: dict) ->
             aviation_render.render_taf_decoded(taf) if args.decode
             else aviation_render.render_taf_raw(taf)
         )
+    parts.append(
+        "Not for operational use. Consult an official aviation weather "
+        "briefing source (e.g. 1800wxbrief.com, ForeFlight, or your "
+        "national AIS) before flight."
+    )
     print("\n\n".join(parts))
     return 0
 
@@ -209,6 +214,15 @@ def main(argv: list[str] | None = None) -> int:
     cfg = _apply_overrides(cfg, args)
     ua = cfg["api"]["user_agent"]
     timeout = cfg["api"]["timeout"]
+
+    if settings.is_placeholder_user_agent(ua):
+        print(
+            "warning: api.user_agent still contains the example.com placeholder. "
+            "NWS and met.no require a real contact (website or email) and will "
+            "throttle or 403 requests otherwise. Edit "
+            f"{settings.config_path()} before heavy use.",
+            file=sys.stderr,
+        )
 
     # METAR/TAF short-circuit: positional must be an ICAO code (4 alpha chars)
     if args.metar or args.taf:

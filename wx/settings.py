@@ -95,6 +95,18 @@ def load() -> dict[str, Any]:
     return _deep_merge(DEFAULTS, user)
 
 
+def is_placeholder_user_agent(ua: str) -> bool:
+    """True if the User-Agent still contains the example.com placeholder.
+
+    NWS and met.no both block / throttle requests without real contact
+    info; we warn loudly so first-run users don't get mysterious 403s.
+    """
+    if not ua:
+        return True
+    low = ua.lower()
+    return "example.com" in low or "you@example.com" in low
+
+
 TEMPLATE = """# wx CLI configuration
 # Edit and save. Run `wx --config-path` to see this file's location.
 

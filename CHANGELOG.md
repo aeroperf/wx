@@ -5,6 +5,25 @@ All notable changes to `wx` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] — 2026-05-18
+
+Compliance and pre-publish polish — no breaking changes, but several
+items every consumer should see before the project is announced publicly.
+
+### Added
+- Top-level [LICENSE](LICENSE) file (MIT). `pyproject.toml` now points
+  at the file instead of declaring the license as inline text, so
+  PyPI / GitHub / downstream packagers detect it correctly.
+- Open-Meteo geocoding is now credited in the README attribution list
+  (CC BY 4.0 per their terms).
+- Aviation output (`-m`, `-t`) prints a "not for operational use"
+  disclaimer footer and the README aviation section carries the same
+  notice in a callout block.
+- New `wx.settings.is_placeholder_user_agent()` helper; the CLI now
+  prints a loud stderr warning if `api.user_agent` still contains the
+  `example.com` placeholder, since NWS and met.no will throttle or
+  403 requests with stub User-Agents.
+
 ## [1.2.1] — 2026-05-18
 
 ### Added
@@ -107,6 +126,7 @@ Initial commit. Three forecast providers (NWS, DWD via Bright Sky, met.no)
 with auto-routing by coordinate bounding box, four output styles (rich,
 table, plain, json), four unit presets, Open-Meteo geocoding, TOML config.
 
+[1.3.0]: https://github.com/aeroperf/wx/releases/tag/v1.3.0
 [1.2.1]: https://github.com/aeroperf/wx/releases/tag/v1.2.1
 [1.2.0]: https://github.com/aeroperf/wx/releases/tag/v1.2.0
 [1.1.0]: https://github.com/aeroperf/wx/releases/tag/v1.1.0

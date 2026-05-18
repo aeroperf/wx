@@ -268,6 +268,13 @@ groups (FM/BECMG/PROB/TEMPO), and validity windows as a readable block.
 The aviation mode short-circuits forecast routing — flags like `-H`, `-d`,
 `-A`, `--provider`, etc. are ignored when `-m` or `-t` is set.
 
+> **Not for operational use.** METAR/TAF data is sourced from
+> `aviationweather.gov` and re-displayed as-is, but this tool is not an
+> approved aviation weather briefing source. Pilots and dispatchers
+> must consult an official briefing service (e.g. 1800wxbrief.com,
+> ForeFlight, or your national AIS) before flight. No warranty is
+> made as to accuracy, completeness, or timeliness.
+
 ### Settings file
 
 On first run, a TOML config is created:
@@ -374,5 +381,6 @@ This tool re-displays public data from:
 - Deutscher Wetterdienst, served via Bright Sky — DWD terms of use apply.
 - MET Norway — Norwegian Licence for Open Government Data (NLOD) / CC BY 4.0.
 - NWS Aviation Weather Center (`aviationweather.gov`) — public domain.
+- Geocoding by [Open-Meteo](https://open-meteo.com) (CC BY 4.0).
 
 The attribution line is printed at the bottom of each forecast.

@@ -284,7 +284,8 @@ def test_cli_metar_raw_output(capsys):
         rc = cli.main(["-m", "KORD"])
     assert rc == 0
     out = capsys.readouterr().out
-    assert out.strip() == METAR_KORD[0]["rawOb"]
+    assert METAR_KORD[0]["rawOb"] in out
+    assert "Not for operational use" in out
 
 
 def test_cli_metar_decoded(capsys):
