@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Terminal weather, routed to the best regional API (NWS / DWD / met.no)"
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [{name = "you"}]
+authors = [{name = "Michael Vogt"}]
 license = {text = "MIT"}
 dependencies = [
     "requests>=2.31",
