@@ -33,7 +33,7 @@ DEFAULTS: dict[str, Any] = {
     },
     "api": {
         # NWS REQUIRES contact info in User-Agent. Edit this in your config.
-        "user_agent": "wx/0.1 (https://example.com; you@example.com)",
+        "user_agent": "wx/1.0 (https://example.com; you@example.com)",
         "timeout": 15,
     },
     "location": {
@@ -49,7 +49,7 @@ def config_dir() -> Path:
         base = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
         p = Path(base) / "wx"
     else:
-        xdg = os.environ.get("XDG_CONFIG_HOME")
+        xdg = os.environ.get("XDG_CONFIG_HOME") or None
         p = Path(xdg) / "wx" if xdg else Path.home() / ".config" / "wx"
     try:
         p.mkdir(parents=True, exist_ok=True)
@@ -117,7 +117,7 @@ hourly_hours = 12
 [api]
 # NWS REQUIRES a descriptive User-Agent with contact info.
 # met.no also requires a non-generic User-Agent.
-user_agent = "wx/0.1 (https://example.com; you@example.com)"
+user_agent = "wx/1.0 (https://example.com; you@example.com)"
 timeout    = 15
 
 [location]

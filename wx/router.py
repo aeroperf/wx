@@ -47,7 +47,13 @@ def is_europe(lat: float, lon: float) -> bool:
 
     Intentionally generous; this is the secondary fallback before met.no.
     """
-    return _in_box(lat, lon, lat_min=34.0, lat_max=72.0, lon_min=-25.0, lon_max=45.0)
+    # Mainland Europe + UK + Iceland + west Russia
+    if _in_box(lat, lon, lat_min=34.0, lat_max=72.0, lon_min=-25.0, lon_max=45.0):
+        return True
+    # Canary Islands (Spanish territory, off Morocco coast)
+    if _in_box(lat, lon, lat_min=27.5, lat_max=29.5, lon_min=-18.2, lon_max=-13.4):
+        return True
+    return False
 
 
 def pick(lat: float, lon: float) -> Provider:

@@ -112,12 +112,15 @@ def fetch(lat: float, lon: float, location_label: str, ua: str, timeout: int = 1
                     timeout,
                 )
                 op = obs["properties"]
+                apparent = _value(op.get("heatIndex"))
+                if apparent is None:
+                    apparent = _value(op.get("windChill"))
+                if apparent is None:
+                    apparent = _value(op.get("temperature"))
                 fc.current = CurrentConditions(
                     time=_parse_dt(op.get("timestamp")),
                     temperature=_value(op.get("temperature")),
-                    apparent=_value(op.get("heatIndex"))
-                    or _value(op.get("windChill"))
-                    or _value(op.get("temperature")),
+                    apparent=apparent,
                     dewpoint=_value(op.get("dewpoint")),
                     humidity=_value(op.get("relativeHumidity")),
                     wind_speed=_value(op.get("windSpeed")),

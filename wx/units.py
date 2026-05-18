@@ -79,10 +79,10 @@ def meters_to(value: float | None, unit: str) -> float | None:
     return value
 
 
-# Display suffixes
-TEMP_SUFFIX = {"C": "°C", "F": "°F", "K": "K"}
+# Display suffixes (keys are lowercase; look up via .lower())
+TEMP_SUFFIX = {"c": "°C", "f": "°F", "k": "K"}
 WIND_SUFFIX = {"kt": "kt", "mph": "mph", "kph": "km/h", "mps": "m/s"}
-PRESSURE_SUFFIX = {"inHg": "inHg", "hPa": "hPa", "mb": "mb", "mmHg": "mmHg"}
+PRESSURE_SUFFIX = {"inhg": "inHg", "hpa": "hPa", "mb": "mb", "mmhg": "mmHg"}
 PRECIP_SUFFIX = {"in": "in", "mm": "mm"}
 VIS_SUFFIX = {"mi": "mi", "km": "km", "m": "m", "ft": "ft"}
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json as jsonlib
+import textwrap
 from datetime import datetime
 from typing import Any
 
@@ -95,7 +96,7 @@ def _art_for(condition: str, icon: str) -> list[str]:
 
 def _convert_temp(c: float | None, u: str) -> str:
     v = U.c_to(c, u)
-    suffix = U.TEMP_SUFFIX.get(u.upper(), "°")
+    suffix = U.TEMP_SUFFIX.get(u.lower(), "°")
     return U.fmt(v, suffix)
 
 
@@ -107,7 +108,7 @@ def _convert_wind(mps: float | None, u: str) -> str:
 
 def _convert_pressure(hpa: float | None, u: str) -> str:
     v = U.hpa_to(hpa, u)
-    suffix = U.PRESSURE_SUFFIX.get(u, u)
+    suffix = U.PRESSURE_SUFFIX.get(u.lower(), u)
     return U.fmt(v, suffix, decimals=2 if u.lower() == "inhg" else 0)
 
 
@@ -205,7 +206,7 @@ def render_rich(fc: Forecast, cfg: dict, show_hourly: bool, show_daily: bool,
             day = _fmt_day(d.date)
             lo = _convert_temp(d.temp_min, u['temperature'])
             hi = _convert_temp(d.temp_max, u['temperature'])
-            pop = f" • {int(d.precip_probability)}% precip" if d.precip_probability else ""
+            pop = f" • {int(d.precip_probability)}% precip" if d.precip_probability is not None else ""
             precip = f" / {_convert_precip(d.precipitation, u['precipitation'])}" if d.precipitation else ""
             wind = ""
             if d.wind_speed_max:
@@ -221,7 +222,6 @@ def render_rich(fc: Forecast, cfg: dict, show_hourly: bool, show_daily: bool,
 
 
 def _wrap(text: str, width: int) -> str:
-    import textwrap
     return "\n    ".join(textwrap.wrap(text, width=width))
 
 

@@ -128,12 +128,30 @@ hourly_hours = 12
 [api]
 # NWS and met.no both require a descriptive User-Agent with contact info.
 # Edit this to your own site/email.
-user_agent = "wx/0.1 (https://example.com; you@example.com)"
+user_agent = "wx/1.0 (https://example.com; you@example.com)"
 timeout    = 15
 
 [location]
 default = ""        # optional; e.g. "Denver" — used when no location given
 ```
+
+### Location aliases
+
+Define named shortcuts in the `[locations]` table and call them by name:
+
+```toml
+[locations]
+home = "39.74,-105.0"
+work = "Denver, CO"
+mom  = "Reykjavik"
+```
+
+```bash
+wx home          # uses the coords above
+wx work          # geocodes "Denver, CO"
+```
+
+Values can be either `"lat,lon"` pairs (skip geocoding) or place names.
 
 ### Important: edit the User-Agent
 
@@ -147,7 +165,8 @@ By default, the provider is chosen by coordinate bounding boxes:
 
 - US NWS coverage: CONUS, Alaska (incl. Aleutian wrap), Hawaii, Puerto Rico,
   USVI, Guam, Northern Marianas, American Samoa.
-- Europe: rough box from −25°W to 45°E, 34°N to 72°N.
+- Europe: rough box from −25°W to 45°E, 34°N to 72°N, plus a sub-box for
+  the Canary Islands (Spanish territory off the Moroccan coast).
 - Everything else: met.no.
 
 If a regional API fails (network error, 404, etc.), the tool transparently

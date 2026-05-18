@@ -132,7 +132,7 @@ def _fetch_with_fallback(provider: str, lat: float, lon: float, label: str,
             if debug:
                 print(f"[debug] {p} request error: {e}", file=sys.stderr)
             continue
-    raise SystemExit(f"wx: all providers failed ({last_err})")
+    raise RuntimeError(f"all providers failed ({last_err})")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -171,9 +171,6 @@ def main(argv: list[str] | None = None) -> int:
     try:
         fc = _fetch_with_fallback(args.provider, loc.lat, loc.lon, loc.display,
                                   ua, timeout, args.debug)
-    except SystemExit as e:
-        print(e, file=sys.stderr)
-        return 1
     except Exception as e:
         if args.debug:
             raise
