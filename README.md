@@ -100,6 +100,151 @@ wx -V                   # version
 wx -h                   # full help
 ```
 
+### Example output
+
+US location — routed to NWS, includes active alerts when present:
+
+```
+$ wx -c Denver
+Denver, Colorado, United States  (39.7392, -104.9847) via NWS
+
+    .-.        Light Rain and Fog/Mist
+   (   ).        6 °C  feels 5 °C
+  (___(__)       E 4 kt
+   ' ' ' '       94 %  29.82 inHg
+  ' ' ' '        vis 8 mi
+
+⚠ Active alerts:
+  Freeze Watch — Freeze Watch issued May 17 at 10:59PM MDT
+    until May 19 at 8:00AM MDT by NWS Denver CO
+    expires 2026-05-18 14:00 UTC-06:00
+
+data: US NOAA/NWS (api.weather.gov)
+```
+
+NWS multi-day forecast — daily highs/lows plus the NWS forecaster's
+written narrative for each period:
+
+```
+$ wx -d 5 Denver
+Denver, Colorado, United States  (39.7392, -104.9847) via NWS
+
+    .-.        Light Rain and Fog/Mist
+   (   ).        6 °C  feels 5 °C
+  (___(__)       E 4 kt
+   ' ' ' '       94 %  29.82 inHg
+  ' ' ' '        vis 8 mi
+
+⚠ Active alerts:
+  Freeze Watch — Freeze Watch issued May 17 at 10:59PM MDT
+    until May 19 at 8:00AM MDT by NWS Denver CO
+    expires 2026-05-18 14:00 UTC-06:00
+
+Daily
+  Mon May 18       8 °C / 2 °C     Rain Showers • 97% precip • wind 13 kt
+    Rain showers before noon, then showers and thunderstorms. Cloudy.
+    High near 46, with temperatures falling to around 42 in the
+    afternoon. North northeast wind 8 to 15 mph, with gusts as high as
+    28 mph. Chance of precipitation is 100%. New rainfall amounts
+    between a half and three quarters of an inch possible.
+  Tue May 19      10 °C / 4 °C     Mostly Cloudy then Rain Showers Likely • 75% precip • wind 6 kt
+    Rain showers likely after noon. Mostly cloudy, with a high near 50.
+    Northeast wind 2 to 7 mph, with gusts as high as 16 mph. Chance of
+    precipitation is 60%.
+  Wed May 20      17 °C / 5 °C     Partly Sunny then Showers And Thunderstorms Likely • 73% precip • wind 6 kt
+    Showers and thunderstorms likely after noon. Partly sunny, with a
+    high near 62. Chance of precipitation is 70%.
+  Thu May 21      21 °C / 7 °C     Mostly Sunny then Chance Showers And Thunderstorms • 44% precip • wind 7 kt
+    A chance of showers and thunderstorms after noon. Mostly sunny, with
+    a high near 69.
+  Fri May 22      22 °C / 8 °C     Mostly Sunny then Slight Chance Showers And Thunderstorms • 22% precip • wind 6 kt
+    A slight chance of showers and thunderstorms after noon. Mostly
+    sunny, with a high near 71.
+
+data: US NOAA/NWS (api.weather.gov)
+```
+
+European location — routed to DWD via Bright Sky:
+
+```
+$ wx -c Berlin
+Berlin, State of Berlin, Germany  (52.5244, 13.4105) via DWD
+
+    \   /      dry
+     .-.         18 °C
+  ― (   ) ―      ESE 8 kt, gust 13 kt
+     `-'         48 %  29.99 inHg
+    /   \        vis 23 mi  cloud 88 %
+
+data: Deutscher Wetterdienst via Bright Sky (brightsky.dev)
+```
+
+Anywhere else — routed to met.no (Norwegian Meteorological Institute):
+
+```
+$ wx -c "Phuket, Thailand"
+Phuket, Phuket, Thailand  (7.8906, 98.3981) via METNO
+
+    .-.        Light rain
+   (   ).        28 °C
+  (___(__)       WNW 17 kt
+   ' ' ' '       79 %  29.72 inHg
+  ' ' ' '        vis —  cloud 100 %
+
+data: MET Norway (api.met.no, CC BY 4.0)
+```
+
+Table style — same data, no ASCII art, easy to scan or pipe:
+
+```
+$ wx --style table -d 5 Denver
+Denver, Colorado, United States  (39.7392, -104.9847)  via NWS
+
+CURRENT
+  condition      Light Rain and Fog/Mist
+  temperature    6 °C
+  feels like     5 °C
+  humidity       94%
+  wind           E 4 kt
+  pressure       29.82 inHg
+  visibility     8 mi
+
+DAILY
+  day               high     low    precip  condition
+  Mon May 18        8 °C    2 °C       97%  Rain Showers
+  Tue May 19       10 °C    4 °C       75%  Mostly Cloudy then Rain Showers Likely
+  Wed May 20       17 °C    5 °C       73%  Partly Sunny then Showers And Thunderstorms Likely
+  Thu May 21       21 °C    7 °C       44%  Mostly Sunny then Chance Showers And Thunderstorms
+  Fri May 22       22 °C    8 °C       22%  Mostly Sunny then Slight Chance Showers And Thunderstorms
+
+data: US NOAA/NWS (api.weather.gov)
+```
+
+Raw METAR — the form pilots and dispatchers expect:
+
+```
+$ wx -m KORD
+METAR KORD 180951Z 19014G25KT 10SM FEW050 BKN070 BKN180 BKN250 24/15
+  A2981 RMK AO2 PK WND 19027/0934 SLP089 T02390150 $
+```
+
+Raw TAF:
+
+```
+$ wx -t KORD
+TAF KORD 180909Z 1809/1912 19014G24KT P6SM SCT060 BKN100
+  FM181100 17011KT 6SM -SHRA SCT035 OVC060
+  TEMPO 1811/1814 27018G28KT 3SM -TSRA BKN035CB
+  FM181400 16015G26KT 6SM -SHRA VCTS BKN040CB OVC080
+  FM181800 21014G24KT P6SM SCT050 BKN100
+  FM190200 19011G20KT P6SM FEW060 BKN200
+  FM191000 22013G22KT P6SM SCT040 OVC060
+  PROB30 1910/1912 4SM -SHRA BKN035
+```
+
+(The actual METAR/TAF is emitted as a single line; line breaks above are
+for readability. Use `--decode` for a pretty-printed multi-line form.)
+
 ### METAR & TAF for airports
 
 Aviation observations and forecasts by 4-character station identifier,
