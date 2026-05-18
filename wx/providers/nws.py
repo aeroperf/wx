@@ -162,6 +162,14 @@ def fetch(lat: float, lon: float, location_label: str, ua: str, timeout: int = 1
         except requests.RequestException:
             pass
 
+    # NWS station observations frequently omit textDescription/icon. Backfill
+    # from the first hourly forecast period so the rich view still gets a
+    # condition label and ASCII art.
+    if fc.current and not fc.current.condition and not fc.current.icon and fc.hourly:
+        first = fc.hourly[0]
+        fc.current.condition = first.condition
+        fc.current.icon = first.icon
+
     # daily (NWS returns twice-daily periods - day/night pairs)
     if forecast_url:
         try:
